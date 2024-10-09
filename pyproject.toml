@@ -1,0 +1,20 @@
+[project]
+name = "pointmouse"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python>=4.10.0.84",
+    "mediapipe==0.10.14",
+    "pyautogui>=0.9.54",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "black>=24.10.0",
+]
+
+[tool.black]
+line-length = 88  # Adjust as needed
+target-version = ['py311']  # Specify your Python version

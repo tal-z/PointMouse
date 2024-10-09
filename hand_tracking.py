@@ -6,7 +6,7 @@ import time
 
 
 class VirtualMouse:
-    def __init__(self, smoothing_factor=0.2):
+    def __init__(self, smoothing_factor=0.2, frame_skip=2):
         # MediaPipe Hands module
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(max_num_hands=1)  # We focus on 1 hand
@@ -14,9 +14,12 @@ class VirtualMouse:
 
         # Webcam initialization
         self.cap = cv2.VideoCapture(0)
-
         if not self.cap.isOpened():
             raise Exception("Error: Could not open webcam.")
+        
+        # Lower the camera resolution for better performance
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
         # Screen resolution for mapping hand movements
         self.screen_width, self.screen_height = pyautogui.size()
@@ -33,6 +36,14 @@ class VirtualMouse:
         self.frame = None
         self.stop_flag = False
 
+        # Frame processing control
+        self.frame_skip = frame_skip  # Skip processing frames to reduce CPU load
+        self.frame_count = 0
+
+        # Throttle mouse movements to avoid excessive updates
+        self.last_move_time = time.time()
+        self.mouse_move_interval = 0.02  # Throttle mouse updates to 50 times/second
+
         # Start frame capturing thread
         self.capture_thread = threading.Thread(target=self.update_frame, daemon=True)
         self.capture_thread.start()
@@ -40,7 +51,7 @@ class VirtualMouse:
         # Initialize left button state
         self.left_button_pressed = False
         self.finger_together_time = 0.0  # Time fingers are together
-        self.click_threshold_duration = 0.1  # Duration for a click (in seconds)
+        self.click_threshold_duration = 0.3  # Duration for a click (in seconds)
 
     def update_frame(self):
         """Capture frames from the webcam in a separate thread."""
@@ -55,7 +66,7 @@ class VirtualMouse:
             frame = cv2.flip(frame, 1)
 
             with self.frame_lock:
-                self.frame = frame
+                self.frame = frame.copy()
 
             # Small sleep to prevent high CPU usage in this thread
             time.sleep(0.01)
@@ -116,8 +127,7 @@ class VirtualMouse:
                 )  # Release the left mouse button if previously pressed
                 self.left_button_pressed = False  # Reset mouse down state
 
-                duration = duration = time.time() - self.finger_together_time
-                print(duration)
+                duration = time.time() - self.finger_together_time
                 if duration < self.click_threshold_duration:
                     pyautogui.click(button="left")  # Simulate a click (press + release)
 
@@ -181,10 +191,10 @@ class VirtualMouse:
                 # Apply smoothing to the mouse movement
                 smooth_x, smooth_y = self.smooth_movement(screen_x, screen_y)
 
-                print(f"Smooth Finger Coordinates: X: {smooth_x}, Y: {smooth_y}")
-
-                # Move the mouse to the smoothed position
-                pyautogui.moveTo(smooth_x, smooth_y)
+                # Throttle mouse movement updates
+                if time.time() - self.last_move_time > self.mouse_move_interval:
+                    pyautogui.moveTo(smooth_x, smooth_y)
+                    self.last_move_time = time.time()
 
                 # Check for left-click gesture
                 self.detect_click(hand_landmarks)
@@ -195,7 +205,10 @@ class VirtualMouse:
     def run(self):
         """Run the main loop to process frames."""
         while not self.stop_flag:
-            self.process_frame()
+            if self.frame_count % self.frame_skip == 0:
+                self.process_frame()
+
+            self.frame_count += 1
 
             # Press 'Esc' to quit
             if cv2.waitKey(5) & 0xFF == 27:
@@ -215,7 +228,7 @@ class VirtualMouse:
 
 if __name__ == "__main__":
     try:
-        virtual_mouse = VirtualMouse(smoothing_factor=0.2)
+        virtual_mouse = VirtualMouse(smoothing_factor=0.1, frame_skip=1)
         virtual_mouse.run()
     except Exception as e:
         print(f"An error occurred: {e}")

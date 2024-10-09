@@ -14,6 +14,7 @@ class VirtualMouse:
 
         # Webcam initialization
         self.cap = cv2.VideoCapture(0)
+
         if not self.cap.isOpened():
             raise Exception("Error: Could not open webcam.")
 
@@ -38,6 +39,8 @@ class VirtualMouse:
 
         # Initialize left button state
         self.left_button_pressed = False
+        self.finger_together_time = 0.0  # Time fingers are together
+        self.click_threshold_duration = 0.1  # Duration for a click (in seconds)
 
     def update_frame(self):
         """Capture frames from the webcam in a separate thread."""
@@ -79,57 +82,66 @@ class VirtualMouse:
 
         return smooth_x, smooth_y
 
-    def detect_left_click(self, hand_landmarks, threshold=0.05):
+    def detect_click(self, hand_landmarks, threshold=0.02):
         """Detect if thumb and forefinger are close enough to simulate a click."""
+        if self.detect_right_click(hand_landmarks, threshold):
+            return
+        self.detect_left_click(hand_landmarks, threshold)
+
+    def detect_left_click(self, hand_landmarks, threshold=0.02):
         forefinger_tip = hand_landmarks.landmark[
             self.mp_hands.HandLandmark.INDEX_FINGER_TIP
         ]
         thumb_tip = hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP]
 
         # Calculate the Euclidean distance between thumb and forefinger
-        dist = (
-            (forefinger_tip.x - thumb_tip.x) ** 2
-            + (forefinger_tip.y - thumb_tip.y) ** 2
-        ) ** 0.5
+        dist = self.calculate_distance(forefinger_tip, thumb_tip)
 
-        if dist < threshold and not self.left_button_pressed:
-            pyautogui.mouseDown(button="left")  # Press down the left mouse button
-            self.left_button_pressed = True
-        elif dist >= threshold and self.left_button_pressed:
-            pyautogui.mouseUp(button="left")  # Release the left mouse button
-            self.left_button_pressed = False
+        # Check if fingers are together
+        if dist < threshold:
+            if not self.left_button_pressed:
+                # Mouse down
+                pyautogui.mouseDown(button="left")  # Press down the left mouse button
+                # Start timing the fingers being together
+                self.left_button_pressed = True
+                self.finger_together_time = (
+                    time.time()
+                )  # Record the time they first touch
 
-    def detect_right_click(self, hand_landmarks, threshold=0.05):
-        """Detect if thumb, forefinger, and middle finger are close enough to simulate a right click."""
+        else:
+            # If fingers are apart, reset everything
+            if self.left_button_pressed:
+                pyautogui.mouseUp(
+                    button="left"
+                )  # Release the left mouse button if previously pressed
+                self.left_button_pressed = False  # Reset mouse down state
+
+                duration = duration = time.time() - self.finger_together_time
+                print(duration)
+                if duration < self.click_threshold_duration:
+                    pyautogui.click(button="left")  # Simulate a click (press + release)
+
+            self.finger_together_time = 0.0  # Reset the timer
+
+    def detect_right_click(self, hand_landmarks, threshold=0.02):
+        """Detect if thumb, forefinger, and middle finger are close enough to simulate a right-click."""
         thumb_tip = hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP]
-        forefinger_tip = hand_landmarks.landmark[
-            self.mp_hands.HandLandmark.INDEX_FINGER_TIP
-        ]
         middle_finger_tip = hand_landmarks.landmark[
             self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP
         ]
 
-        # Calculate distances between the thumb, forefinger, and middle finger
-        dist_thumb_forefinger = (
-            (thumb_tip.x - forefinger_tip.x) ** 2
-            + (thumb_tip.y - forefinger_tip.y) ** 2
-        ) ** 0.5
-        dist_thumb_middle = (
-            (thumb_tip.x - middle_finger_tip.x) ** 2
-            + (thumb_tip.y - middle_finger_tip.y) ** 2
-        ) ** 0.5
-        dist_forefinger_middle = (
-            (forefinger_tip.x - middle_finger_tip.x) ** 2
-            + (forefinger_tip.y - middle_finger_tip.y) ** 2
-        ) ** 0.5
+        # Calculate distances between fingers
+        dist_thumb_middle = self.calculate_distance(thumb_tip, middle_finger_tip)
 
         # Check if all distances are below the threshold to simulate a right-click
-        if (
-            dist_thumb_forefinger < threshold
-            and dist_thumb_middle < threshold
-            and dist_forefinger_middle < threshold
-        ):
+        if dist_thumb_middle < threshold:
             pyautogui.click(button="right")  # Simulate a right-click
+            return True
+        return False
+
+    def calculate_distance(self, point1, point2):
+        """Calculate the Euclidean distance between two points."""
+        return ((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2) ** 0.5
 
     def process_frame(self):
         """Process the frame in the main thread for hand detection and mouse control."""
@@ -175,10 +187,7 @@ class VirtualMouse:
                 pyautogui.moveTo(smooth_x, smooth_y)
 
                 # Check for left-click gesture
-                self.detect_left_click(hand_landmarks)
-
-                # Check for right-click gesture
-                self.detect_right_click(hand_landmarks)
+                self.detect_click(hand_landmarks)
 
         # Show the frame with hand tracking
         cv2.imshow("Virtual Mouse", frame)

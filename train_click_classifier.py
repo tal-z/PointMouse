@@ -116,7 +116,7 @@ if __name__ == "__main__":
     print("Loading and splitting data...")
     # Load and split data
     X_train, X_test, y_train, y_test, label_encoder = load_and_split_data(
-        "right_hand_landmarks_labeled_202410121123.csv"
+        "right_hand_landmarks_labeled_20241012112300.csv"
     )
 
     # Tune hyperparameters and train stacked model

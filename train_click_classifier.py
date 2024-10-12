@@ -1,19 +1,30 @@
 import joblib
 import pandas as pd
 import numpy as np
+import logging
+
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.ensemble import StackingClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, classification_report
 
+# Set up logging configuration
+logging.basicConfig(
+    filename='model_training.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
+
+# Log that the script has started
+logging.info("Script started.")
 
 def load_and_split_data(infile="your_data_file.csv"):
+    logging.info(f"Loading data from {infile}...")
     # Load the data
     data = pd.read_csv(infile)
 
@@ -21,15 +32,15 @@ def load_and_split_data(infile="your_data_file.csv"):
     X = data.iloc[:, 1:].values  # All columns except the first one
     y = data.iloc[:, 0].values  # The first column (labels)
 
-    # Print unique labels before encoding
-    print("Unique labels before encoding:", np.unique(y))
+    # Log unique labels before encoding
+    logging.info("Unique labels before encoding: %s", np.unique(y))
 
     # Encode the labels if they are categorical
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
 
-    # Print unique labels after encoding
-    print("Unique labels after encoding:", np.unique(y_encoded))
+    # Log unique labels after encoding
+    logging.info("Unique labels after encoding: %s", np.unique(y_encoded))
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(
@@ -41,10 +52,12 @@ def load_and_split_data(infile="your_data_file.csv"):
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
+    logging.info("Data loaded and split into training and testing sets.")
     return X_train, X_test, y_train, y_test, label_encoder
 
 
 def hyperparameter_tuning_for_stacking(X_train, y_train):
+    logging.info("Defining base models for stacking...")
     # Define base models for stacking
     base_estimators = [
         ("rf", RandomForestClassifier(random_state=42)),
@@ -69,13 +82,10 @@ def hyperparameter_tuning_for_stacking(X_train, y_train):
         "xgb__n_estimators": [100, 200, 300],
         "xgb__learning_rate": [0.01, 0.1, 0.2],
         "xgb__max_depth": [3, 4, 5],
-        "final_estimator__C": [
-            0.1,
-            1,
-            10,
-        ],  # Hyperparameter for meta-model LogisticRegression
+        "final_estimator__C": [0.1, 1, 10],
     }
 
+    logging.info("Starting hyperparameter tuning using RandomizedSearchCV...")
     # Perform RandomizedSearchCV to tune hyperparameters
     randomized_search = RandomizedSearchCV(
         stacking_clf,
@@ -90,44 +100,48 @@ def hyperparameter_tuning_for_stacking(X_train, y_train):
 
     randomized_search.fit(X_train, y_train)
 
-    print("Best Parameters found for Stacking: ", randomized_search.best_params_)
+    logging.info("Best Parameters found for Stacking: %s", randomized_search.best_params_)
 
     return randomized_search.best_estimator_
 
 
 def test_model(model, testing_data, label_encoder):
     X_test, y_test = testing_data
+    logging.info("Testing the model...")
+
     # Make predictions
     y_pred = model.predict(X_test)
 
     # Evaluate the model
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"Accuracy: {accuracy * 100:.2f}%")
+    logging.info(f"Accuracy: {accuracy * 100:.2f}%")
 
-    # Print classification report
-    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+    # Log classification report
+    report = classification_report(y_test, y_pred, target_names=label_encoder.classes_)
+    logging.info("Classification Report:\n%s", report)
 
 
 def save_model_to_pkl(model, outfile="trained_model.pkl"):
     joblib.dump(model, outfile)
+    logging.info(f"Model saved to {outfile}.")
 
 
 if __name__ == "__main__":
-    print("Loading and splitting data...")
+    logging.info("Loading and splitting data...")
     # Load and split data
     X_train, X_test, y_train, y_test, label_encoder = load_and_split_data(
-        "right_hand_landmarks_labeled_20241012112300.csv"
+        "right_hand_landmarks_labeled_20241012171100.csv"
     )
 
     # Tune hyperparameters and train stacked model
-    print("Tuning hyperparameters for stacked model...")
+    logging.info("Tuning hyperparameters for stacked model...")
     best_stacked_model = hyperparameter_tuning_for_stacking(X_train, y_train)
 
     # Test the tuned stacked model
-    print("Testing tuned stacked model...")
+    logging.info("Testing tuned stacked model...")
     test_model(best_stacked_model, (X_test, y_test), label_encoder)
 
     # Save the tuned stacked model
-    print("Saving tuned stacked model...")
+    logging.info("Saving tuned stacked model...")
     save_model_to_pkl(best_stacked_model, outfile="tuned_stacked_model_exp.pkl")
-    print("Done!")
+    logging.info("Done!")

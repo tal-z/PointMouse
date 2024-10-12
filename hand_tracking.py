@@ -1,25 +1,27 @@
+import threading
+import time
+
 import cv2
 import mediapipe as mp
 import pyautogui
-import threading
-import time
 
 
 class VirtualMouse:
     def __init__(self, smoothing_factor=0.2, frame_skip=2):
-        # MediaPipe Hands module
+        # Initialize MediaPipe Hands module
         self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands(max_num_hands=1)  # We focus on 1 hand
+        self.hands = self.mp_hands.Hands(
+            max_num_hands=1, min_detection_confidence=0.5, min_tracking_confidence=0.3
+        )
         self.mp_drawing = mp.solutions.drawing_utils
 
         # Webcam initialization
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
             raise Exception("Error: Could not open webcam.")
-        
-        # Lower the camera resolution for better performance
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        # Lower camera resolution for better performance
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # Lower resolution
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
 
         # Screen resolution for mapping hand movements
         self.screen_width, self.screen_height = pyautogui.size()
@@ -31,27 +33,27 @@ class VirtualMouse:
         # Smoothing factor (0 to 1) - smaller is smoother, larger is faster
         self.smoothing_factor = smoothing_factor
 
-        # Thread control
+        # Frame capture control
         self.frame_lock = threading.Lock()
         self.frame = None
         self.stop_flag = False
 
-        # Frame processing control
-        self.frame_skip = frame_skip  # Skip processing frames to reduce CPU load
+        # Dynamic frame skipping
+        self.frame_skip = frame_skip
         self.frame_count = 0
 
         # Throttle mouse movements to avoid excessive updates
         self.last_move_time = time.time()
-        self.mouse_move_interval = 0.02  # Throttle mouse updates to 50 times/second
+        self.mouse_move_interval = 0.02  # Limit mouse updates to 50 times/second
 
-        # Start frame capturing thread
+        # Thread for frame capture
         self.capture_thread = threading.Thread(target=self.update_frame, daemon=True)
         self.capture_thread.start()
 
-        # Initialize left button state
+        # Left click detection
         self.left_button_pressed = False
-        self.finger_together_time = 0.0  # Time fingers are together
-        self.click_threshold_duration = 0.3  # Duration for a click (in seconds)
+        self.left_button_pressed_at = None
+        self.click_threshold_duration = 0.3  # Duration for a click
 
     def update_frame(self):
         """Capture frames from the webcam in a separate thread."""
@@ -71,90 +73,127 @@ class VirtualMouse:
             # Small sleep to prevent high CPU usage in this thread
             time.sleep(0.01)
 
-    def map_to_screen(self, finger_x, finger_y, cam_width, cam_height):
-        """Map webcam coordinates to screen coordinates."""
-        screen_x = int(finger_x * self.screen_width / cam_width)
-        screen_y = int(finger_y * self.screen_height / cam_height)
+    def map_to_screen(
+        self, finger_x, finger_y, cam_width, cam_height, camera_scaling_factor=0.7
+    ):
+        """Map webcam coordinates to screen coordinates, with scaling factor to reduce hand movement range."""
+        screen_x = min(
+            int(finger_x * self.screen_width / (cam_width * camera_scaling_factor)),
+            self.screen_width,
+        )
+        screen_y = max(
+            min(
+                int(
+                    finger_y * self.screen_height / (cam_height * camera_scaling_factor)
+                ),
+                self.screen_height,
+            ),
+            0,
+        )
         return screen_x, screen_y
 
     def smooth_movement(self, screen_x, screen_y):
-        """Smooth mouse movement using exponential moving average (EMA)."""
+        """Apply dynamic smoothing to mouse movements."""
+        distance = (
+            (screen_x - self.prev_screen_x) ** 2 + (screen_y - self.prev_screen_y) ** 2
+        ) ** 0.5
+        dynamic_smoothing = min(
+            0.9, max(0.05, 0.1 + distance / 1000)
+        )  # Dynamic smoothing based on movement
         smooth_x = int(
-            self.prev_screen_x * (1 - self.smoothing_factor)
-            + screen_x * self.smoothing_factor
+            self.prev_screen_x * (1 - dynamic_smoothing) + screen_x * dynamic_smoothing
         )
         smooth_y = int(
-            self.prev_screen_y * (1 - self.smoothing_factor)
-            + screen_y * self.smoothing_factor
+            self.prev_screen_y * (1 - dynamic_smoothing) + screen_y * dynamic_smoothing
         )
-
         # Update previous coordinates for the next frame
         self.prev_screen_x, self.prev_screen_y = smooth_x, smooth_y
-
         return smooth_x, smooth_y
 
-    def detect_click(self, hand_landmarks, threshold=0.02):
-        """Detect if thumb and forefinger are close enough to simulate a click."""
-        if self.detect_right_click(hand_landmarks, threshold):
+    def detect_gesture(self, hand_landmarks):
+        """Detect left and right mouse clicks."""
+        if self.detect_left_click(hand_landmarks):
             return
-        self.detect_left_click(hand_landmarks, threshold)
+        if self.detect_right_click(hand_landmarks):
+            return
+        self.detect_scroll(hand_landmarks)
 
-    def detect_left_click(self, hand_landmarks, threshold=0.02):
+    def detect_left_click(self, hand_landmarks, threshold=0.05):
+        """Detect left-click gesture using thumb and forefinger proximity."""
         forefinger_tip = hand_landmarks.landmark[
             self.mp_hands.HandLandmark.INDEX_FINGER_TIP
         ]
         thumb_tip = hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP]
-
-        # Calculate the Euclidean distance between thumb and forefinger
         dist = self.calculate_distance(forefinger_tip, thumb_tip)
+        if dist < threshold and not self.left_button_pressed:
+            pyautogui.mouseDown(button="left")
+            self.left_button_pressed_at = time.time()
+            self.left_button_pressed = True
+            return True
+        elif dist >= threshold and self.left_button_pressed:
+            pyautogui.mouseUp(button="left")
+            now = time.time()
+            if now - self.left_button_pressed_at < self.click_threshold_duration:
+                pyautogui.click(button="left")
+            self.left_button_pressed = False
+            self.left_button_pressed_at = None
+            return True
+        return False
 
-        # Check if fingers are together
-        if dist < threshold:
-            if not self.left_button_pressed:
-                # Mouse down
-                pyautogui.mouseDown(button="left")  # Press down the left mouse button
-                # Start timing the fingers being together
-                self.left_button_pressed = True
-                self.finger_together_time = (
-                    time.time()
-                )  # Record the time they first touch
-
-        else:
-            # If fingers are apart, reset everything
-            if self.left_button_pressed:
-                pyautogui.mouseUp(
-                    button="left"
-                )  # Release the left mouse button if previously pressed
-                self.left_button_pressed = False  # Reset mouse down state
-
-                duration = time.time() - self.finger_together_time
-                if duration < self.click_threshold_duration:
-                    pyautogui.click(button="left")  # Simulate a click (press + release)
-
-            self.finger_together_time = 0.0  # Reset the timer
-
-    def detect_right_click(self, hand_landmarks, threshold=0.02):
-        """Detect if thumb, forefinger, and middle finger are close enough to simulate a right-click."""
+    def detect_right_click(self, hand_landmarks, threshold=0.025):
+        """Detect right-click gesture using thumb and middle finger proximity."""
         thumb_tip = hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP]
         middle_finger_tip = hand_landmarks.landmark[
             self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP
         ]
+        dist = self.calculate_distance(thumb_tip, middle_finger_tip)
 
-        # Calculate distances between fingers
-        dist_thumb_middle = self.calculate_distance(thumb_tip, middle_finger_tip)
-
-        # Check if all distances are below the threshold to simulate a right-click
-        if dist_thumb_middle < threshold:
-            pyautogui.click(button="right")  # Simulate a right-click
+        if dist < threshold:
+            pyautogui.click(button="right")
             return True
         return False
 
+    def detect_scroll(self, hand_landmarks, swipe_threshold=0.05, max_scroll_speed=50):
+        """Detect swipe up/down gesture with the index finger for scrolling, with dynamic scroll speed."""
+        index_tip = hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
+        index_pip = hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_PIP]
+
+        middle_tip = hand_landmarks.landmark[
+            self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP
+        ]
+        middle_pip = hand_landmarks.landmark[
+            self.mp_hands.HandLandmark.MIDDLE_FINGER_PIP
+        ]
+
+        # Calculate vertical distance between the index finger's tip and dip
+        index_vertical_distance = abs(index_tip.y - index_pip.y)
+        middle_vertical_distance = abs(middle_tip.y - middle_pip.y)
+        print(index_vertical_distance)
+
+        dist_between_tips = abs(index_tip.x - middle_tip.x)
+
+        # Check if both index and middle fingers are moving consistently in a vertical direction
+        if (
+            index_vertical_distance > swipe_threshold
+            and middle_vertical_distance > swipe_threshold
+            and dist_between_tips <= 0.03
+        ):
+            scroll_speed = min(int(index_vertical_distance * 100), max_scroll_speed)
+
+            if index_tip.y < index_dip.y:  # Swipe up
+                pyautogui.scroll(scroll_speed)
+            else:  # Swipe down
+                pyautogui.scroll(-scroll_speed)
+
+            return True  # Scroll detected
+        return False  # No scroll detected
+
     def calculate_distance(self, point1, point2):
-        """Calculate the Euclidean distance between two points."""
+        """Calculate Euclidean distance between two points."""
         return ((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2) ** 0.5
 
     def process_frame(self):
-        """Process the frame in the main thread for hand detection and mouse control."""
+        """Process the frame for hand detection and mouse control."""
         with self.frame_lock:
             frame = self.frame.copy() if self.frame is not None else None
 
@@ -175,12 +214,12 @@ class VirtualMouse:
                     frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS
                 )
 
-                # Extract the coordinates of the forefinger tip
-                forefinger_tip = hand_landmarks.landmark[
-                    self.mp_hands.HandLandmark.INDEX_FINGER_TIP
+                # Extract forefinger mcp coordinates
+                forefinger_mcp = hand_landmarks.landmark[
+                    self.mp_hands.HandLandmark.INDEX_FINGER_MCP
                 ]
-                finger_x, finger_y = int(forefinger_tip.x * w), int(
-                    forefinger_tip.y * h
+                finger_x, finger_y = int(forefinger_mcp.x * w), int(
+                    forefinger_mcp.y * h
                 )
 
                 # Map to screen coordinates
@@ -188,7 +227,7 @@ class VirtualMouse:
                     finger_x, finger_y, cam_width=w, cam_height=h
                 )
 
-                # Apply smoothing to the mouse movement
+                # Apply smoothing to mouse movement
                 smooth_x, smooth_y = self.smooth_movement(screen_x, screen_y)
 
                 # Throttle mouse movement updates
@@ -196,21 +235,21 @@ class VirtualMouse:
                     pyautogui.moveTo(smooth_x, smooth_y)
                     self.last_move_time = time.time()
 
-                # Check for left-click gesture
-                self.detect_click(hand_landmarks)
+                # Detect click gestures
+                self.detect_gesture(hand_landmarks)
 
-        # Show the frame with hand tracking
+        # Display frame
         cv2.imshow("Virtual Mouse", frame)
 
     def run(self):
-        """Run the main loop to process frames."""
+        """Main loop to process frames."""
         while not self.stop_flag:
             if self.frame_count % self.frame_skip == 0:
                 self.process_frame()
 
             self.frame_count += 1
 
-            # Press 'Esc' to quit
+            # Quit on 'Esc' key press
             if cv2.waitKey(5) & 0xFF == 27:
                 self.stop_flag = True
                 break
@@ -220,7 +259,7 @@ class VirtualMouse:
         cv2.destroyAllWindows()
 
     def __del__(self):
-        """Ensure thread is stopped and resources are released."""
+        """Ensure resources are released properly."""
         self.stop_flag = True
         if self.capture_thread.is_alive():
             self.capture_thread.join()
@@ -228,7 +267,7 @@ class VirtualMouse:
 
 if __name__ == "__main__":
     try:
-        virtual_mouse = VirtualMouse(smoothing_factor=0.1, frame_skip=1)
+        virtual_mouse = VirtualMouse(smoothing_factor=0.25, frame_skip=1)
         virtual_mouse.run()
     except Exception as e:
         print(f"An error occurred: {e}")

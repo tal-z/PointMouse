@@ -16,5 +16,5 @@ dev-dependencies = [
 ]
 
 [tool.black]
-line-length = 88  # Adjust as needed
-target-version = ['py311']  # Specify your Python version
+line-length = 88
+target-version = ['py311']

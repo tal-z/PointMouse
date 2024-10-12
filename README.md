@@ -37,5 +37,12 @@ The CSV file hand_landmarks.csv will contain the following structure:
     Example Row:
         left click, 0.123, 0.456, 0.789, ..., 0.111, 0.222, 0.333
 
+
 #### Hand Landmarks
 ![Hand Landmarks](hand-landmarks.png)
+
+
+
+Interesting problems:
+ - When the hand goes off camera, or even hand landmarks go off camera, accuracy goes way down
+    - Solution: keep hand on screen by reducing necessary range of motion to move cursor

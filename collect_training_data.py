@@ -8,36 +8,46 @@ LABELS = ["left click", "right click", "no click"]
 
 # MediaPipe Hands initialization
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
+hands = mp_hands.Hands(
+    static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7
+)
+
 
 # Function to save landmarks and labels to a CSV file
-def save_landmarks_to_csv(label, landmarks, csv_file='hand_landmarks.csv'):
+def save_landmarks_to_csv(label, landmarks, csv_file="hand_landmarks.csv"):
     # Flatten the landmark data and prepend the label
-    data_row = [label] + [coord for landmark in landmarks for coord in (landmark.x, landmark.y, landmark.z)]
-    
+    data_row = [label] + [
+        coord
+        for landmark in landmarks
+        for coord in (landmark.x, landmark.y, landmark.z)
+    ]
+
     # Append the data to the CSV file
-    with open(csv_file, mode='a', newline='') as f:
+    with open(csv_file, mode="a", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(data_row)
     print(f"Landmarks saved with label '{label}'.")
+
 
 def main():
     # Initialize video capture
     cap = cv2.VideoCapture(0)
 
     # CSV file for saving landmarks and labels
-    csv_file = 'hand_landmarks.csv'
+    csv_file = "hand_landmarks.csv"
 
     # Check if CSV file exists, if not create it with a header row
     if not os.path.exists(csv_file):
-        with open(csv_file, mode='w', newline='') as f:
+        with open(csv_file, mode="w", newline="") as f:
             writer = csv.writer(f)
             # Create header with "label" followed by landmark coordinates (21 landmarks, each with x, y, z)
-            header = ['label'] + [f'x{i}, y{i}, z{i}' for i in range(21)]
+            header = ["label"] + [f"x{i}, y{i}, z{i}" for i in range(21)]
             writer.writerow(header)
 
     print(f"Recording data. Press 'r' to capture an image, 'q' to quit.")
-    print(f"After capture, press 1 for 'left click', 2 for 'right click', 3 for 'no click'.")
+    print(
+        f"After capture, press 1 for 'left click', 2 for 'right click', 3 for 'no click'."
+    )
 
     captured_landmarks = None
 
@@ -60,7 +70,8 @@ def main():
         if result.multi_hand_landmarks:
             for hand_landmarks in result.multi_hand_landmarks:
                 mp.solutions.drawing_utils.draw_landmarks(
-                    frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                    frame, hand_landmarks, mp_hands.HAND_CONNECTIONS
+                )
 
         # Display the live video feed
         cv2.imshow('Live Feed - Press "r" to capture', frame)
@@ -69,40 +80,45 @@ def main():
         key = cv2.waitKey(1) & 0xFF
 
         # Press 'r' to capture landmarks
-        if key == ord('r'):
+        if key == ord("r"):
             print("Pressed 'r'")
             if result.multi_hand_landmarks:
                 captured_frame = frame.copy()  # Save the captured frame
-                captured_landmarks = result.multi_hand_landmarks[0].landmark  # Save the landmarks
+                captured_landmarks = result.multi_hand_landmarks[
+                    0
+                ].landmark  # Save the landmarks
 
                 # Display the captured frame for visual feedback
-                cv2.imshow('Captured Frame - Ready to Label', captured_frame)
-                print("Image captured. Now press 1 for 'left click', 2 for 'right click', or 3 for 'no click'.")
+                cv2.imshow("Captured Frame - Ready to Label", captured_frame)
+                print(
+                    "Image captured. Now press 1 for 'left click', 2 for 'right click', or 3 for 'no click'."
+                )
 
         # Press '1', '2', or '3' to label the image
-        elif key in [ord('1'), ord('2'), ord('3')] and captured_landmarks is not None:
-            if key == ord('1'):
+        elif key in [ord("1"), ord("2"), ord("3")] and captured_landmarks is not None:
+            if key == ord("1"):
                 label = "left click"
-            elif key == ord('2'):
+            elif key == ord("2"):
                 label = "right click"
-            elif key == ord('3'):
+            elif key == ord("3"):
                 label = "no click"
 
             # Save the landmarks and label
             save_landmarks_to_csv(label, captured_landmarks, csv_file)
-            cv2.destroyWindow('Captured Frame - Ready to Label')
+            cv2.destroyWindow("Captured Frame - Ready to Label")
 
             # Reset captured landmarks so you can capture another frame
             captured_landmarks = None
             print("Ready for the next capture.")
 
         # Press 'q' to quit the program
-        if key == ord('q'):
+        if key == ord("q"):
             break
 
     # Release the video capture and close all windows
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

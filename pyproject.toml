@@ -8,11 +8,15 @@ dependencies = [
     "opencv-python>=4.10.0.84",
     "mediapipe==0.10.14",
     "pyautogui>=0.9.54",
+    "joblib>=1.4.2",
 ]
 
 [tool.uv]
 dev-dependencies = [
     "black>=24.10.0",
+    "pandas>=2.2.3",
+    "scikit-learn>=1.5.2",
+    "xgboost>=2.1.1",
 ]
 
 [tool.black]

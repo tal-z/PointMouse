@@ -41,7 +41,12 @@ def main():
         with open(csv_file, mode="w", newline="") as f:
             writer = csv.writer(f)
             # Create header with "label" followed by landmark coordinates (21 landmarks, each with x, y, z)
-            header = ["label"] + [f"x{i}, y{i}, z{i}" for i in range(21)]
+            header = ["label"]
+            for i in range(21):
+                header.append(f"x{i}")
+                header.append(f"y{i}")
+                header.append(f"z{i}")
+
             writer.writerow(header)
 
     print(f"Recording data. Press 'r' to capture an image, 'q' to quit.")

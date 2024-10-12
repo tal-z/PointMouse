@@ -89,18 +89,16 @@ class VirtualMouse:
             # Small sleep to prevent high CPU usage in this thread
             time.sleep(0.01)
 
-    def map_to_screen(
-        self, finger_x, finger_y, cam_width, cam_height
-    ):
+    def map_to_screen(self, finger_x, finger_y, cam_width, cam_height):
         """Map webcam coordinates to screen coordinates, with scaling factor to reduce hand movement range."""
-        
+
         # exaggerate finger positions to reduce range of motion needed
         cam_width_center = cam_width / 2
-        finger_x_offset_from_center = (finger_x - cam_width_center)
+        finger_x_offset_from_center = finger_x - cam_width_center
         finger_x += finger_x_offset_from_center
 
         cam_height_center = cam_height / 2
-        finger_y_offset_from_center = (finger_y - cam_height_center)
+        finger_y_offset_from_center = finger_y - cam_height_center
         finger_y += finger_y_offset_from_center
 
         screen_x = min(
@@ -109,9 +107,7 @@ class VirtualMouse:
         )
         screen_y = max(
             min(
-                int(
-                    finger_y * self.screen_height / (cam_height)
-                ),
+                int(finger_y * self.screen_height / (cam_height)),
                 self.screen_height,
             ),
             0,

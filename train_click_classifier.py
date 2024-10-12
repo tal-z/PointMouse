@@ -15,13 +15,14 @@ from sklearn.metrics import accuracy_score, classification_report
 
 # Set up logging configuration
 logging.basicConfig(
-    filename='model_training.log',
+    filename="model_training.log",
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 # Log that the script has started
 logging.info("Script started.")
+
 
 def load_and_split_data(infile="your_data_file.csv"):
     logging.info(f"Loading data from {infile}...")
@@ -100,7 +101,9 @@ def hyperparameter_tuning_for_stacking(X_train, y_train):
 
     randomized_search.fit(X_train, y_train)
 
-    logging.info("Best Parameters found for Stacking: %s", randomized_search.best_params_)
+    logging.info(
+        "Best Parameters found for Stacking: %s", randomized_search.best_params_
+    )
 
     return randomized_search.best_estimator_
 

@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score, classification_report
 
 # Set up logging configuration
 logging.basicConfig(
-    filename="model_training.log",
+    filename="logs/model_training.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
@@ -146,5 +146,5 @@ if __name__ == "__main__":
 
     # Save the tuned stacked model
     logging.info("Saving tuned stacked model...")
-    save_model_to_pkl(best_stacked_model, outfile="tuned_stacked_model_exp.pkl")
+    save_model_to_pkl(best_stacked_model, outfile="models/tuned_stacked_model_exp.pkl")
     logging.info("Done!")

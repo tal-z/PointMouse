@@ -133,7 +133,7 @@ if __name__ == "__main__":
     logging.info("Loading and splitting data...")
     # Load and split data
     X_train, X_test, y_train, y_test, label_encoder = load_and_split_data(
-        "hand_landmarks.csv"
+        "training_data/numbered_hand_landmarks_20241025.csv"
     )
 
     # Tune hyperparameters and train stacked model
@@ -147,4 +147,4 @@ if __name__ == "__main__":
     # Save the tuned stacked model
     logging.info("Saving tuned stacked model...")
     save_model_to_pkl(best_stacked_model, outfile="models/tuned_stacked_model_exp.pkl")
-    logging.info("Done!")
+    logging.info("Done!\n\n")

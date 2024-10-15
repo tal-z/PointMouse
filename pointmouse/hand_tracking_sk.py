@@ -19,7 +19,7 @@ class VirtualMouse:
         self,
         smoothing_factor=0.1,
         frame_skip=1,
-        model_path="tuned_stacked_model_exp.pkl",
+        model_path="models/tuned_stacked_model_exp.pkl",
     ):
         # Load the trained model
         self.click_model = joblib.load(model_path)
@@ -60,7 +60,7 @@ class VirtualMouse:
 
         # Throttle mouse movements to avoid excessive updates
         self.last_move_time = time.time()
-        self.mouse_move_interval = 0.02  # Limit mouse updates to 50 times/second
+        self.mouse_move_interval = 0.01  # Limit mouse updates to 100 times/second
 
         # Thread for frame capture
         self.capture_thread = threading.Thread(target=self.update_frame, daemon=True)
@@ -145,7 +145,7 @@ class VirtualMouse:
         pyautogui.click(button="left")
 
     def right_click(self):
-        print("right")
+        print("right click")
         pyautogui.click(button="right")
 
     def extract_features(self, hand_landmarks):
@@ -184,13 +184,12 @@ class VirtualMouse:
 
                 # Make prediction
                 prediction = self.click_model.predict(features)
-                print(prediction)
 
                 # Map predicted action to mouse action
                 if prediction == 0:
                     self.left_click()
                 elif prediction == 1:
-                    pass
+                    print("no click")
                 elif prediction == 2:
                     self.right_click()
 
@@ -244,7 +243,7 @@ class VirtualMouse:
 
 if __name__ == "__main__":
     try:
-        virtual_mouse = VirtualMouse(smoothing_factor=0.1, frame_skip=1)
+        virtual_mouse = VirtualMouse(smoothing_factor=0.5, frame_skip=1)
         virtual_mouse.run()
     except Exception as e:
         print(f"An error occurred: {e}")

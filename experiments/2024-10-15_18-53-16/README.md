@@ -1,6 +1,7 @@
 
 
 # EXPERIMENT 2024-10-15_18-53-16
+SUCCESSFUL
 
 # Training Data Notes
 Three gestures reflected in data:

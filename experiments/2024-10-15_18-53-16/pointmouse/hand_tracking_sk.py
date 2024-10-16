@@ -157,8 +157,12 @@ class VirtualMouse:
         features = []
         for landmark in hand_landmarks.landmark:
             features.extend(
-                [landmark.x, landmark.y, landmark.z]
-            )  # Add x, y, z for each landmark
+                [
+                    landmark.x, 
+                    landmark.y, 
+                    # landmark.z
+                ]
+            )  # Add x, y for each landmark
         return np.array(features).reshape(1, -1)  # Reshape for model input
 
     def process_frame(self):

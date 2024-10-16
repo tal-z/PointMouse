@@ -1,6 +1,7 @@
 
 
 # EXPERIMENT 2024-10-16_09-50-00
+UNSUCCESSFUL
 
 # Training Data Notes
 Three gestures reflected in data:

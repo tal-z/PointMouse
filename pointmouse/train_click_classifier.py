@@ -2,6 +2,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import logging
+import os
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
@@ -13,9 +14,16 @@ from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, classification_report
 
+
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Create logs directory inside the script directory if it doesn't exist
+log_dir = os.path.join(parent_dir, "logs")
+os.makedirs(log_dir, exist_ok=True)
+
 # Set up logging configuration
 logging.basicConfig(
-    filename="logs/model_training.log",
+    filename=os.path.join(log_dir, "model_training.log"),
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
@@ -133,8 +141,9 @@ if __name__ == "__main__":
     logging.info("Loading and splitting data...")
     # Load and split data
     X_train, X_test, y_train, y_test, label_encoder = load_and_split_data(
-        "training_data/numbered_hand_landmarks_20241025.csv"
+        os.path.join(parent_dir, "hand_landmarks.csv")
     )
+
 
     # Tune hyperparameters and train stacked model
     logging.info("Tuning hyperparameters for stacked model...")
@@ -146,5 +155,5 @@ if __name__ == "__main__":
 
     # Save the tuned stacked model
     logging.info("Saving tuned stacked model...")
-    save_model_to_pkl(best_stacked_model, outfile="models/tuned_stacked_model_exp.pkl")
+    save_model_to_pkl(best_stacked_model, outfile="models/click_model.pkl")
     logging.info("Done!\n\n")

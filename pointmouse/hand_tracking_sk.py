@@ -1,6 +1,7 @@
 import warnings
 import threading
 import time
+import os
 
 import cv2
 import mediapipe as mp
@@ -14,12 +15,15 @@ warnings.filterwarnings(
 pyautogui.FAILSAFE = False
 
 
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 class VirtualMouse:
     def __init__(
         self,
         smoothing_factor=0.1,
         frame_skip=1,
-        model_path="models/tuned_stacked_model_exp.pkl",
+        model_path=f"{parent_dir}/models/click_model.pkl",
     ):
         # Load the trained model
         self.click_model = joblib.load(model_path)

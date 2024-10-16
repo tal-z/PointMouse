@@ -14,7 +14,9 @@ hands = mp_hands.Hands(
 
 
 # Function to save landmarks and labels to a CSV file
-def save_landmarks_to_csv(label, landmarks, csv_file="training_data/hand_landmarks.csv"):
+def save_landmarks_to_csv(
+    label, landmarks, csv_file="training_data/hand_landmarks.csv"
+):
     # Flatten the landmark data and prepend the label
     data_row = [label] + [
         coord

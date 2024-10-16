@@ -154,5 +154,8 @@ if __name__ == "__main__":
 
     # Save the tuned stacked model
     logging.info("Saving tuned stacked model...")
-    save_model_to_pkl(best_stacked_model, outfile="models/click_model.pkl")
+    save_model_to_pkl(
+        best_stacked_model,
+        outfile=os.path.join(os.path.dirname(script_dir), "click_model.pkl"),
+    )
     logging.info("Done!\n\n")

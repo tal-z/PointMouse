@@ -99,11 +99,11 @@ class VirtualMouse:
         # exaggerate finger positions to reduce range of motion needed
         cam_width_center = cam_width / 2
         finger_x_offset_from_center = finger_x - cam_width_center
-        finger_x += (finger_x_offset_from_center * 1.5)
+        finger_x += finger_x_offset_from_center * 1.5
 
         cam_height_center = cam_height / 2
         finger_y_offset_from_center = finger_y - cam_height_center
-        finger_y += (finger_y_offset_from_center * 1.5)
+        finger_y += finger_y_offset_from_center * 1.5
 
         screen_x = min(
             int(finger_x * self.screen_width / (cam_width)),

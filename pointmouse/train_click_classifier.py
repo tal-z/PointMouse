@@ -144,7 +144,6 @@ if __name__ == "__main__":
         os.path.join(parent_dir, "hand_landmarks.csv")
     )
 
-
     # Tune hyperparameters and train stacked model
     logging.info("Tuning hyperparameters for stacked model...")
     best_stacked_model = hyperparameter_tuning_for_stacking(X_train, y_train)

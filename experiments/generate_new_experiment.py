@@ -8,16 +8,16 @@ if __name__ == "__main__":
     os.mkdir(new_directory_path)
 
     README_TEMPLATE = f"""
-    
-    # EXPERIMENT {now}
 
-    # Training Data Notes
+# EXPERIMENT {now}
 
-    # Model Training Notes
+# Training Data Notes
 
-    # Application Notes
+# Model Training Notes
 
-    """
+# Application Notes
+
+"""
 
     shutil.copytree(
         "pointmouse", f"{new_directory_path}/pointmouse", dirs_exist_ok=True
@@ -25,3 +25,6 @@ if __name__ == "__main__":
 
     with open(f"{new_directory_path}/README.md", "w") as f:
         f.write(README_TEMPLATE)
+
+    with open(f"{new_directory_path}/hand_landmarks.csv", "w") as f:
+        f.write("")

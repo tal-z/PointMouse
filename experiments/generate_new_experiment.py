@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
 
     README_TEMPLATE = f"""
-
+    
     # EXPERIMENT {now}
 
     # Training Data Notes
@@ -18,10 +18,9 @@ if __name__ == "__main__":
 
     # Application Notes
 
-
     """
 
-    shutil.copytree('pointmouse', new_directory_path, dirs_exist_ok=True)
+    shutil.copytree('pointmouse', f'{new_directory_path}/pointmouse', dirs_exist_ok=True)
         
 
     with open(f"{new_directory_path}/README.md", "w") as f:
